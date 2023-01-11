@@ -5,15 +5,20 @@ const mongoose = require("mongoose");
 const User = require("./Models/User");
 const connectDB = require("./connectMongo");
 const bcrypt = require("bcryptjs");
-const { json } = require("express");
+const jwt = require("jsonwebtoken");
+
+const cookieParser = require("cookie-parser");
 
 const app = express();
 
-app.use(cors());
+//> if we use credentials in front end we need to put credentials and origin
+app.use(cors({ credentials: true, origin: "http://localhost:3000" }));
 
 app.use(express.json());
+app.use(cookieParser());
 
 const salt = bcrypt.genSaltSync(10);
+const jwtSecret = "gowtham";
 
 //> Register Route
 app.post("/register", async (req, res) => {
@@ -35,11 +40,38 @@ app.post("/register", async (req, res) => {
 
 app.post("/login", async (req, res) => {
   const { username, password } = req.body;
+  console.log('password:', password)
 
   const userInfo = await User.findOne({ username });
-//* Decrypting the pwd and checking match   
+  //* Decrypting the pwd and checking match
   const passwordVerified = bcrypt.compareSync(password, userInfo.password);
-  res.json(passwordVerified);
+
+  if (passwordVerified) {
+    const token = jwt.sign({ username, id: userInfo._id }, jwtSecret, {});
+
+    // > using cookie
+    res.cookie("token", token).json({ id: userInfo._id, username });
+  } else {
+    return res.status(400).send("Invalid Credentials");
+  }
+});
+
+//> get User Profile
+
+app.get("/profile", (req, res) => {
+  const { token } = req.cookies;
+  jwt.verify(token, jwtSecret, {}, (err, info) => {
+    if (err) {
+      throw err;
+    }
+    res.json(info);
+  });
+});
+
+//> Logout
+
+app.post("/logout", (req, res) => {
+  res.cookie("token", "").json("ok logout Success");
 });
 
 app.listen(8080, async () => {
