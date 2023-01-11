@@ -37,10 +37,9 @@ app.post("/login", async (req, res) => {
   const { username, password } = req.body;
 
   const userInfo = await User.findOne({ username });
-  res.json(userInfo );
-  console.log("userInfo:", userInfo);
-
-
+//* Decrypting the pwd and checking match   
+  const passwordVerified = bcrypt.compareSync(password, userInfo.password);
+  res.json(passwordVerified);
 });
 
 app.listen(8080, async () => {
